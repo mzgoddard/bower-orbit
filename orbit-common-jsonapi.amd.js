@@ -300,7 +300,7 @@ define("orbit-common/jsonapi-source",
         var relResourceType = this.resourceType(relType);
         var relResourceId = this.resourceId(relType, relId);
 
-        var method = linkDef.type === 'hasMany' ? 'POST' : 'PUT';
+        var method = 'POST';
         var json = {};
         json[relResourceType] = relResourceId;
 
