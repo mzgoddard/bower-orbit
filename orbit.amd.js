@@ -2154,6 +2154,8 @@ define("orbit/transformable",
     var transformOne = function(operation) {
       normalizeOperation(operation);
 
+      // if we are settling transforms and receive a new transform, we must skip
+      // the queue and apply our transform directly (seems maybe broken?)
       if (this.settlingTransforms) {
         return applyTransform.call(this, operation);
       } else {
@@ -2188,19 +2190,20 @@ define("orbit/transformable",
       // console.log('applyTransform', this.id, operation);
 
       var res = this._transform(operation);
+      var forceNewSettle = !!this.settlingTransforms;
 
       if (res) {
         var _this = this;
         return res.then(
           function(inverse) {
-            return _this.settleTransforms().then(function () {
+            return _this.settleTransforms(forceNewSettle).then(function () {
               return inverse;
             });
           }
         );
 
       } else {
-        return this.settleTransforms();
+        return this.settleTransforms(forceNewSettle);
       }
     };
 
@@ -2217,15 +2220,22 @@ define("orbit/transformable",
             object._completedTransforms.push([operation, inverse]);
           };
 
-          object.settleTransforms = function() {
+          object.settleTransforms = function(force) {
             var _this = this;
             var ops = this._completedTransforms;
 
-            // console.log('settleTransforms', this.id, ops);
+            // console.log('settleTransforms', this.id, ops.slice());
+            if (!ops.length) {
+              return new Orbit.Promise(function(resolve) {
+                resolve();
+              });
+            }
 
-            _this.settlingTransforms = true;
+            if (!force && _this.settlingTransforms) {
+              return _this.settlingTransforms;
+            }
 
-            return new Orbit.Promise(function(resolve) {
+            var settle = new Orbit.Promise(function(resolve) {
               var settleEach = function() {
                 if (ops.length === 0) {
                   _this.settlingTransforms = false;
@@ -2247,6 +2257,10 @@ define("orbit/transformable",
 
               settleEach();
             });
+
+            if (!_this.settlingTransforms) {
+              _this.settlingTransforms = settle;
+            }
           };
 
           object.transform = function(operation) {

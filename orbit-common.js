@@ -267,10 +267,18 @@ define("orbit-common/cache",
               Object.keys(value.__rev).forEach(function(path) {
                 path = _this._doc.deserializePath(path);
 
-                operation = {
-                  op: 'remove',
-                  path: path
-                };
+                if (path.length === 4) {
+                  operation = {
+                    op: 'replace',
+                    path: path,
+                    value: null
+                  };
+                } else {
+                  operation = {
+                    op: 'remove',
+                    path: path
+                  };
+                }
 
                 try {
                   _this._transform(operation, _this.trackChanges);
