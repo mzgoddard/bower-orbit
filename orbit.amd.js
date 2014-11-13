@@ -1320,6 +1320,7 @@ define("orbit/lib/objects",
           }
         }
       });
+      return destination;
     };
 
     /**
@@ -2071,16 +2072,21 @@ define("orbit/transform-connector",
 
           // console.log('currentValue', currentValue, ' transform from ', this.source.id, ' to ', this.target.id, operation);
 
-          if (!isNone(currentValue) && (operation.op === 'add' || operation.op === 'replace')) {
-            if (eq(currentValue, operation.value)) {
-              // console.log('==', ' transform from ', this.source.id, ' to ', this.target.id, operation);
+          if (isNone(currentValue)) {
+            // Removing a null value, or replacing it with another null value, is unnecessary
+            if ((operation.op === 'remove') ||
+                (operation.op === 'replace' && isNone(operation.value))) {
               return;
+            }
+
+          } else if (operation.op === 'add' || operation.op === 'replace') {
+            if (eq(currentValue, operation.value)) {
+              // Replacing a value with its equivalent is unnecessary
+              return;
+
             } else {
               return this.resolveConflicts(operation.path, currentValue, operation.value);
             }
-
-          } else if (isNone(currentValue) && operation.op === 'remove') {
-            return;
           }
         }
 
@@ -2224,15 +2230,15 @@ define("orbit/transformable",
             var _this = this;
             var ops = this._completedTransforms;
 
-            // console.log('settleTransforms', this.id, ops.slice());
+            // console.log('settleTransforms', this.id, ops.slice(), force);
             if (!ops.length) {
               return new Orbit.Promise(function(resolve) {
                 resolve();
               });
             }
 
-            if (!force && _this.settlingTransforms) {
-              return _this.settlingTransforms;
+            if (!force && this.settlingTransforms) {
+              return this.settlingTransforms;
             }
 
             var settle = new Orbit.Promise(function(resolve) {
@@ -2258,9 +2264,10 @@ define("orbit/transformable",
               settleEach();
             });
 
-            if (!_this.settlingTransforms) {
-              _this.settlingTransforms = settle;
+            if (!this.settlingTransforms) {
+              this.settlingTransforms = settle;
             }
+            return settle;
           };
 
           object.transform = function(operation) {
